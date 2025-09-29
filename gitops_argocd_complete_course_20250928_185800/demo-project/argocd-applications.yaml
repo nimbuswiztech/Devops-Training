@@ -1,0 +1,142 @@
+# ArgoCD Application for Guestbook Demo
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: guestbook
+    app.kubernetes.io/part-of: demo-project
+spec:
+  project: default
+
+  # Source configuration
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+
+  # Destination configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+
+---
+# ArgoCD Application for Kustomize Guestbook
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kustomize-guestbook
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: kustomize-guestbook
+    app.kubernetes.io/part-of: demo-project
+spec:
+  project: default
+
+  # Source configuration
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: kustomize-guestbook
+
+    # Kustomize specific configuration
+    kustomize:
+      images:
+      - gcr.io/heptio-images/ks-guestbook-demo:0.2
+      commonLabels:
+        environment: demo
+        managed-by: argocd
+
+  # Destination configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kustomize-guestbook
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+
+---
+# ArgoCD Application for Helm Guestbook
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-guestbook
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: helm-guestbook
+    app.kubernetes.io/part-of: demo-project
+spec:
+  project: default
+
+  # Source configuration
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: helm-guestbook
+
+    # Helm specific configuration
+    helm:
+      valueFiles:
+      - values.yaml
+      parameters:
+      - name: service.type
+        value: ClusterIP
+      - name: replicaCount
+        value: "2"
+      - name: image.tag
+        value: "0.2"
+      values: |
+        service:
+          type: ClusterIP
+        replicaCount: 2
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+
+  # Destination configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helm-guestbook
+
+  # Sync policy
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
